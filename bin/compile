@@ -32,7 +32,7 @@ if ssh_key.nil?
   exit 1
 end
 
-ssh_dir = Pathname.new("~/.ssh").expand_path
+ssh_dir = "#{build_dir}/.ssh"
 puts "ssh dir is"
 putter ssh_dir
 

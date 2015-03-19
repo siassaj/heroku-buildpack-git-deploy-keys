@@ -44,17 +44,23 @@ File.open "#{ssh_dir}/github_deploy_key", "w" do |f|
     f.puts ssh_key
 end
 
+FileUtils.chmod 0400, "#{ssh_dir}/github_deploy_key"
+
 puts "############################### FILE IS"
 putter File.read "#{ssh_dir}/github_deploy_key"
 
 # Update the config
 File.open "#{ssh_dir}/config", "w" do |f|
+  f.puts "StrictHostKeyChecking=no"
+  f.puts ""
   f.puts "Host github.com"
   f.puts "     User git"
   f.puts "     IdentityFile #{ssh_dir}/github_deploy_key"
   f.puts ""
   f.puts "IdentityFile #{ssh_dir}/github_deploy_key"
 end
+
+FileUtils.chmod 0600, "#{ssh_dir}/config"
 
 
 puts "############################### CONFIG IS"

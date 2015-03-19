@@ -49,11 +49,11 @@ putter File.read "#{ssh_dir}/github_deploy_key"
 
 # Update the config
 File.open "#{ssh_dir}/config", "w" do |f|
-  f.puts "\n"
-  f.puts "host github.com"
-  f.puts "    user git"
-  f.puts "    IdentityFile #{ssh_dir}/github_deploy_key"
-  f.puts "\n"
+  f.puts "Host github.com"
+  f.puts "     User git"
+  f.puts "     IdentityFile #{ssh_dir}/github_deploy_key"
+  f.puts ""
+  f.puts "IdentityFile #{ssh_dir}/github_deploy_key"
 end
 
 

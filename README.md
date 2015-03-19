@@ -11,7 +11,7 @@ Heroku buildpack to let you use git deploy keys with your private repositories
 I do
 
 ```
-heroku config:set GITHUB_DELPOY_KEY="`cat /path/to/key`"
+heroku config:set GITHUB_DEPLOY_KEY="`cat /path/to/key`"
 ```
 
 

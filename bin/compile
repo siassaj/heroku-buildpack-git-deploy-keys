@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 
 require 'fileutils'
+require 'pathname'
 
 build_dir    = ARGV[0]
 cache_dir    = ARGV[1]

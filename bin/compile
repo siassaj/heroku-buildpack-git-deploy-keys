@@ -6,9 +6,24 @@ build_dir    = ARGV[0]
 cache_dir    = ARGV[1]
 env_dir      = ARGV[2]
 
+def putter(arg)
+  puts "############################################"
+  puts arg
+end
+
+puts "############################################"
+puts "############################################"
+puts "          GIT DELOY KEY BUILDPACK           "
+puts "############################################"
+puts "############################################"
+
 key_file_path = File.join env_dir, 'GITHUB_DEPLOY_KEY'
 
+putter key_file_path
+
 ssh_key = File.open(key_file_path, &:read) if File.exist? key_file_path
+
+putter ssh_key
 
 if ssh_key.nil?
   puts "       !!!! GITHUB_DEDLOY_KEY not set"
@@ -25,6 +40,9 @@ File.open "#{ENV['HOME']}/.ssh/github_deploy_key", "w" do |f|
   f.puts ssh_key
 end
 
+puts "############################### FILE IS"
+putter File.read "#{ENV['HOME']}/.ssh/github_deploy_key"
+
 # Update the config
 File.open "#{ENV['HOME']}/.ssh/config", "w" do |f|
   f.puts "\n"
@@ -33,3 +51,7 @@ File.open "#{ENV['HOME']}/.ssh/config", "w" do |f|
   f.puts "    IdentityFile ~/.ssh/github_deploy_key"
   f.puts "\n"
 end
+
+
+puts "############################### CONFIG IS"
+putter File.read "#{ENV['HOME']}/.ssh/config"

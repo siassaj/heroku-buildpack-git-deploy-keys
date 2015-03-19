@@ -56,9 +56,9 @@ File.open "#{ssh_dir}/config", "w" do |f|
   f.puts ""
   f.puts "Host github.com"
   f.puts "     User git"
-  f.puts "     IdentityFile #{ssh_dir}/github_deploy_key"
+  f.puts "     IdentityFile ~/.ssh/github_deploy_key"
   f.puts ""
-  f.puts "IdentityFile #{ssh_dir}/github_deploy_key"
+  f.puts "IdentityFile ~/.ssh/github_deploy_key"
 end
 
 FileUtils.chmod 0600, "#{ssh_dir}/config"
@@ -66,3 +66,15 @@ FileUtils.chmod 0600, "#{ssh_dir}/config"
 
 puts "############################### CONFIG IS"
 putter File.read "#{ssh_dir}/config"
+
+File.open("~/megaTester1", "w") do |f|
+  f.puts "hi"
+end
+
+File.open("#{build_dir}/megaTester2", "w") do |f|
+  f.puts "hi"
+end
+
+File.open("#{ssh_dir}/megaTester3", "w") do |f|
+  f.puts "hi"
+end

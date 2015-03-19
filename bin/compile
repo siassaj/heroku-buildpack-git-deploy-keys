@@ -68,10 +68,7 @@ puts "############################### CONFIG IS"
 putter File.read "#{ssh_dir}/config"
 
 puts "First"
-File.open("~/megaTester1", "w") do |f|
-  f.puts "hi"
-end
-puts "second"
+
 File.open("#{build_dir}/megaTester2", "w") do |f|
   f.puts "hi"
 end

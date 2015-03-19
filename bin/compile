@@ -40,7 +40,7 @@ File.open "#{ENV['HOME']}/.ssh/github_deploy_key", "w" do |f|
   f.puts "----BEGIN RSA PRIVATE KEY-----"
   f.puts ""
 
-  ssh_key.scan(/.{,64}/).reject(&:blank?).each do |l|
+  ssh_key.scan(/.{,64}/).reject{|str| str == ""}.each do |l|
     f.puts l
   end
 

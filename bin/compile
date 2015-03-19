@@ -37,7 +37,15 @@ Dir.mkdir("#{ENV['HOME']}/.ssh") unless Dir.exist? "#{ENV['HOME']}/.ssh"
 
 # Create the key
 File.open "#{ENV['HOME']}/.ssh/github_deploy_key", "w" do |f|
-  f.puts ssh_key
+  f.puts "----BEGIN RSA PRIVATE KEY-----"
+  f.puts ""
+
+  ssh_key.scan(/.{,64}/).reject(&:blank?).each do |l|
+    f.puts l
+  end
+
+  f.puts ""
+  f.puts "-----END RSA PRIVATE KEY-----"
 end
 
 puts "############################### FILE IS"

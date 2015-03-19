@@ -31,28 +31,23 @@ if ssh_key.nil?
   exit 1
 end
 
+ssh_dir = Pathname.new("~/.ssh").expand_path
+puts "ssh dir is"
+putter ssh_dir 
 
 # make ~/.ssh unless exists
-Dir.mkdir("#{ENV['HOME']}/.ssh") unless Dir.exist? "#{ENV['HOME']}/.ssh"
+Dir.mkdir("#{ssh_dir}/") unless Dir.exist? "#{ENV['HOME']}/.ssh"
 
 # Create the key
-File.open "#{ENV['HOME']}/.ssh/github_deploy_key", "w" do |f|
-  f.puts "----BEGIN RSA PRIVATE KEY-----"
-  f.puts ""
-
-  ssh_key.scan(/.{,64}/).reject{|str| str == ""}.each do |l|
-    f.puts l
-  end
-
-  f.puts ""
-  f.puts "-----END RSA PRIVATE KEY-----"
+File.open "#{ssh_dir}/github_deploy_key", "w" do |f|
+    f.puts ssh_key
 end
 
 puts "############################### FILE IS"
-putter File.read "#{ENV['HOME']}/.ssh/github_deploy_key"
+putter File.read "#{ssh_dir}/github_deploy_key"
 
 # Update the config
-File.open "#{ENV['HOME']}/.ssh/config", "w" do |f|
+File.open "#{ssh_dir}/config", "w" do |f|
   f.puts "\n"
   f.puts "host github.com"
   f.puts "    user git"
@@ -62,4 +57,4 @@ end
 
 
 puts "############################### CONFIG IS"
-putter File.read "#{ENV['HOME']}/.ssh/config"
+putter File.read "#{ssh_dir}/config"

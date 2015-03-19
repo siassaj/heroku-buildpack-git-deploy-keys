@@ -3,7 +3,7 @@ Heroku buildpack to let you use git deploy keys with your private repositories
 
 
 1) Register a deploy key for a github repository
-[Github Instructions]([https://developer.github.com/guides/managing-deploy-keys/#deploy-keys)
+[Github Instructions](https://developer.github.com/guides/managing-deploy-keys/#deploy-keys)
 
 2) Create a ```GITHUB_DEPLOY_KEY``` environment variable with the private key that you registered on your Heroku
 [Heroku Instructions](https://devcenter.heroku.com/articles/config-vars#setting-up-config-vars-for-a-deployed-application)

@@ -45,3 +45,7 @@ File.open "#{build_dir}/.profile.d/ssh.sh", "a" do |f|
 
   f.puts %|echo "#{ssh_key}" > ~/.ssh/github_deploy_key|
 end
+
+File.open "#{build_dir}/.profile.d/ssh.sh", "r" do |f|
+  puts f.read
+end

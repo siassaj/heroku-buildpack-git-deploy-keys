@@ -32,47 +32,16 @@ if ssh_key.nil?
   exit 1
 end
 
-ssh_dir = "#{build_dir}/.ssh"
-puts "ssh dir is"
-putter ssh_dir
+FileUtils.mkdir_p "#{build_dir}/.profile.d"
+File.open "#{build_dir}/.profile.d/ssh.sh", "a" do |f|
+  f.puts "mkdir ~/.ssh"
 
-# make ~/.ssh unless exists
-Dir.mkdir("#{ssh_dir}/") unless Dir.exist? "#{ENV['HOME']}/.ssh"
+  f.puts "echo 'Host *' >> ~/.ssh/config"
+  f.puts "echo '     StrictHostKeyChecking no' >> ~/.ssh/config"
+  f.puts "echo 'Host github.com' >> ~/.ssh/config"
+  f.puts "echo '     User git' >> ~/.ssh/config"
+  f.puts "echo '     IdentityFile ~/.ssh/github_deploy_key' >> ~/.ssh/config"
+  f.puts "echo 'IdentityFile ~/.ssh/github_deploy_key' >> ~/.ssh/config"
 
-# Create the key
-File.open "#{ssh_dir}/github_deploy_key", "w" do |f|
-    f.puts ssh_key
-end
-
-FileUtils.chmod 0400, "#{ssh_dir}/github_deploy_key"
-
-puts "############################### FILE IS"
-putter File.read "#{ssh_dir}/github_deploy_key"
-
-# Update the config
-File.open "#{ssh_dir}/config", "w" do |f|
-  f.puts "Host *"
-  f.puts "     StrictHostKeyChecking no"
-  f.puts ""
-  f.puts "Host github.com"
-  f.puts "     User git"
-  f.puts "     IdentityFile ~/.ssh/github_deploy_key"
-  f.puts ""
-  f.puts "IdentityFile ~/.ssh/github_deploy_key"
-end
-
-FileUtils.chmod 0600, "#{ssh_dir}/config"
-
-
-puts "############################### CONFIG IS"
-putter File.read "#{ssh_dir}/config"
-
-puts "First"
-
-File.open("#{build_dir}/megaTester2", "w") do |f|
-  f.puts "hi"
-end
-puts "third"
-File.open("#{ssh_dir}/megaTester3", "w") do |f|
-  f.puts "hi"
+  f.puts %|echo "#{ssh_key}" > ~/.ssh/github_deploy_key|
 end

@@ -17,7 +17,7 @@ end
 
 def arrow(str)
   str.split("\n").each do |line|
-    puts "-----> #{line}"
+    puts ":::::> #{line}"
   end
 end
 
@@ -27,6 +27,7 @@ arrow "          GIT DELOY KEY BUILDPACK           "
 arrow "############################################"
 arrow "############################################"
 
+arrow "ssh dir is #{ssh_dir}"
 ################# Get the key from heroku's environment config #################
 key_file_path = File.join env_dir, 'GITHUB_DEPLOY_KEY'
 ssh_key = File.open(key_file_path, &:read) if File.exist? key_file_path
@@ -57,16 +58,16 @@ Dir.mktmpdir 'ssh_buidpack' do |dir|
   `ssh-keygen -e -P '' -f #{key_file_path} < /dev/null > #{dir}/ssh_buildpack_key.pub.rfc 2>/dev/null`
   `ssh-keygen -i -P '' -f #{dir}/ssh_buildpack_key.pub.rfc > #{dir}/ssh_buildpack_key.pub 2>/dev/null`
 
-  # Process host hash to standardise it's format
-  `ssh-keygen -e -P '' -f #{key_file_path} < /dev/null > #{dir}/host_hash.pub.rfc 2>/dev/null`
-  `ssh-keygen -i -P '' -f #{dir}/host_hash.pub.rfc > #{dir}/host_hash.pub 2>/dev/null`
+  # # Process host hash to standardise it's format
+  # `ssh-keygen -e -P '' -f #{key_file_path} < /dev/null > #{dir}/host_hash.pub.rfc 2>/dev/null`
+  # `ssh-keygen -i -P '' -f #{dir}/host_hash.pub.rfc > #{dir}/host_hash.pub 2>/dev/null`
 
   fingerprint = `ssh-keygen -l -f #{dir}/ssh_buildpack_key.pub | awk '{print $2}'`
 
   # only used to be sure the passed key was valid
   temp_key = `echo "#{fingerprint}" | tr -ds ':' '' | egrep -ie "[a-f0-9]{32}" 2>/dev/null`
 
-  clean_host_hash = `echo "#{dir}/host_hash.pub"`
+  # clean_host_hash = `cat "#{dir}/host_hash.pub"`
 
   if temp_key.strip == ''
     alert "GITHUB_DEPLOY_KEY was invalid"
@@ -86,10 +87,22 @@ File.open "#{ssh_dir}/id_rsa", 'w' do |f|
 end
 FileUtils.chmod 0600, "#{ssh_dir}/id_rsa"
 arrow "Wrote ssh key to user's ssh dir"
+arrow File.open("#{ssh_dir}/id_rsa").read
 
 #create known_hosts file and write contents
 File.open "#{ssh_dir}/known_hosts", 'w' do |f|
-  f.write clean_host_hash
+  f.write host_hash
 end
 FileUtils.chmod 0600, "#{ssh_dir}/known_hosts"
 arrow "Wrote host hash to user's known hosts"
+arrow File.open("#{ssh_dir}/known_hosts").read
+
+File.open "#{ssh_dir}/config", 'w' do |f|
+  f.puts "IdentityFile #{ssh_dir}/id_rsa"
+  f.puts "host github.com"
+  f.puts "     user git"
+  f.puts "     IdentityFile #{ssh_dir}/id_rsa"
+end
+FileUtils.chmod 0600, "#{ssh_dir}/config"
+arrow "Wrote config to user's config"
+arrow File.open("#{ssh_dir}/config").read

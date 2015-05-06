@@ -4,44 +4,89 @@ require 'fileutils'
 require 'pathname'
 
 build_dir    = ARGV[0]
-cache_dir    = ARGV[1]
-env_dir      = ARGV[2]
+ssh_dir      = File.expand_path "#{ENV['HOME']}/.ssh"
 
-def putter(arg)
-  puts "############################################"
-  puts arg
+def alert(str)
+  str.split('\n').each do |line|
+    puts "       !!!! #{line}"
+  end
 end
 
-puts "############################################"
-puts "############################################"
-puts "          GIT DELOY KEY BUILDPACK           "
-puts "############################################"
-puts "############################################"
+def arrow(str)
+  str.split("\n").each do |line|
+    puts "-----> #{line}"
+  end
+end
 
+arrow "############################################"
+arrow "############################################"
+arrow "          GIT DELOY KEY BUILDPACK           "
+arrow "############################################"
+arrow "############################################"
+
+################# Get the key from heroku's environment config #################
 key_file_path = File.join env_dir, 'GITHUB_DEPLOY_KEY'
-
-putter key_file_path
-
 ssh_key = File.open(key_file_path, &:read) if File.exist? key_file_path
 
-putter ssh_key
-
 if ssh_key.nil?
-  puts "       !!!! GITHUB_DEDLOY_KEY not set"
-  puts "       !!!!   Try `heroku config:add GITHUB_DEPLOY_KEY=<my token>`"
+  alert "GITHUB_DEDLOY_KEY not set"
+  alert "  Try `heroku config:add GITHUB_DEPLOY_KEY=<your private token>`"
   exit 1
 end
 
-FileUtils.mkdir_p "#{build_dir}/.profile.d"
-File.open "#{build_dir}/.profile.d/ssh.sh", "a" do |f|
-  f.puts "mkdir ~/.ssh"
+############# Get the known host from heroku's environment config ##############
+host_hash_path = File.join env_dir, 'GITHUB_HOST_HASH'
+host_hash = File.open(host_hash_path, &:read) if File.exist? host_hash_path
 
-  f.puts "echo 'Host *' >> ~/.ssh/config"
-  f.puts "echo '     StrictHostKeyChecking no' >> ~/.ssh/config"
-  f.puts "echo 'Host github.com' >> ~/.ssh/config"
-  f.puts "echo '     User git' >> ~/.ssh/config"
-  f.puts "echo '     IdentityFile ~/.ssh/github_deploy_key' >> ~/.ssh/config"
-  f.puts "echo 'IdentityFile ~/.ssh/github_deploy_key' >> ~/.ssh/config"
-
-  f.puts %|echo "#{ssh_key}" > ~/.ssh/github_deploy_key|
+if host_hash.nil?
+  alert "GITHUB_HOST_HASH not set"
+  alert "  Try `heroku config:add GITHUB_HOST_HASH=<hash>`"
+  exit 1
 end
+
+###################### Process and clean up the ssh keys #######################
+fingerprint = nil
+temp_key = nil
+clean_host_hash = nil
+
+Dir.mktmpdir 'ssh_buidpack' do |dir|
+  # Process key to standardise it's format
+  `ssh-keygen -e -P '' -f #{key_file_path} < /dev/null > #{dir}/ssh_buildpack_key.pub.rfc 2>/dev/null`
+  `ssh-keygen -i -P '' -f #{dir}/ssh_buildpack_key.pub.rfc > #{dir}/ssh_buildpack_key.pub 2>/dev/null`
+
+  # Process host hash to standardise it's format
+  `ssh-keygen -e -P '' -f #{key_file_path} < /dev/null > #{dir}/host_hash.pub.rfc 2>/dev/null`
+  `ssh-keygen -i -P '' -f #{dir}/host_hash.pub.rfc > #{dir}/host_hash.pub 2>/dev/null`
+
+  fingerprint = `ssh-keygen -l -f #{dir}/ssh_buildpack_key.pub | awk '{print $2}'`
+
+  # only used to be sure the passed key was valid
+  temp_key = `echo "#{fingerprint}" | tr -ds ':' '' | egrep -ie "[a-f0-9]{32}" 2>/dev/null`
+
+  clean_host_hash = `echo "#{dir}/host_hash.pub"`
+
+  if temp_key.strip == ''
+    alert "GITHUB_DEPLOY_KEY was invalid"
+    exit 1
+  else
+    arrow "Using GITHUB_DEPLOY_KEY #{fingerprint}"
+  end
+
+end
+
+# Create the ssh directory on the server
+Dir.mkdir(ssh_dir, 0700) unless File.exists?(ssh_dir)
+
+# Create id_rsa file and write contents
+File.open "#{ssh_dir}/id_rsa", 'w' do |f|
+  f.write ssh_key
+end
+FileUtils.chmod 0600, "#{ssh_dir}/id_rsa"
+indent "Wrote ssh key to user's ssh dir"
+
+#create known_hosts file and write contents
+File.open "#{ssh_dir}/known_hosts", 'w' do |f|
+  f.write clean_host_hash
+end
+FileUtils.chmod 0600, "#{ssh_dir}/known_hosts"
+indent "Wrote host hash to user's known hosts"

@@ -4,6 +4,8 @@ require 'fileutils'
 require 'pathname'
 
 build_dir    = ARGV[0]
+cache_dir    = ARGV[1]
+env_dir      = ARGV[2]
 ssh_dir      = File.expand_path "#{ENV['HOME']}/.ssh"
 
 def alert(str)

@@ -22,10 +22,11 @@ def arrow(str)
 end
 
 arrow "############################################"
+arrow "         GIT DELPOY KEY BUILDPACK           "
 arrow "############################################"
-arrow "          GIT DELOY KEY BUILDPACK           "
+arrow "             DELPOYING IS BEST              "
 arrow "############################################"
-arrow "############################################"
+
 
 arrow "ssh dir is #{ssh_dir}"
 ################# Get the key from heroku's environment config #################

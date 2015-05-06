@@ -88,7 +88,6 @@ File.open "#{ssh_dir}/id_rsa", 'w' do |f|
 end
 FileUtils.chmod 0600, "#{ssh_dir}/id_rsa"
 arrow "Wrote ssh key to user's ssh dir"
-arrow File.open("#{ssh_dir}/id_rsa").read
 
 #create known_hosts file and write contents
 File.open "#{ssh_dir}/known_hosts", 'w' do |f|
@@ -96,7 +95,6 @@ File.open "#{ssh_dir}/known_hosts", 'w' do |f|
 end
 FileUtils.chmod 0600, "#{ssh_dir}/known_hosts"
 arrow "Wrote host hash to user's known hosts"
-arrow File.open("#{ssh_dir}/known_hosts").read
 
 File.open "#{ssh_dir}/config", 'w' do |f|
   f.puts "IdentityFile #{ssh_dir}/id_rsa"
@@ -106,4 +104,4 @@ File.open "#{ssh_dir}/config", 'w' do |f|
 end
 FileUtils.chmod 0600, "#{ssh_dir}/config"
 arrow "Wrote config to user's config"
-arrow File.open("#{ssh_dir}/config").read
+

@@ -85,11 +85,11 @@ File.open "#{ssh_dir}/id_rsa", 'w' do |f|
   f.write ssh_key
 end
 FileUtils.chmod 0600, "#{ssh_dir}/id_rsa"
-indent "Wrote ssh key to user's ssh dir"
+arrow "Wrote ssh key to user's ssh dir"
 
 #create known_hosts file and write contents
 File.open "#{ssh_dir}/known_hosts", 'w' do |f|
   f.write clean_host_hash
 end
 FileUtils.chmod 0600, "#{ssh_dir}/known_hosts"
-indent "Wrote host hash to user's known hosts"
+arrow "Wrote host hash to user's known hosts"

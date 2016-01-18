@@ -152,7 +152,7 @@ keys.each do |key_and_package|
     f.puts "     user git"
     f.puts "     IdentityFile #{key_path}"
   end
-  arrow "Added ssh key ##{idx}to user's ssh config"
+  arrow "Added ssh key for #{package} to user's ssh config"
 end
 
 #create known_hosts file and write contents

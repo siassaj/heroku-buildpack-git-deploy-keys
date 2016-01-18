@@ -6,36 +6,13 @@ Register a deploy key for a github repository
 [Github Instructions](https://developer.github.com/guides/managing-deploy-keys/#deploy-keys)
 
 ### Step 2
-For 1 key create a ```GITHUB_DEPLOY_KEY``` environment variable with the private key that you registered on your Heroku
-
-For 2+ keys create a ```GITHUB_DEPLOY_KEYS``` environment variable with the privates key that you registered on your Heroku in the following format:
-
-```
-key_one_name_or_identifier
------BEGIN RSA PRIVATE KEY-----
-MIIEpAIBAAKCAQEA...
-.
-.
-...DPRYiTMa
------END RSA PRIVATE KEY-----
-
-key_two_name_or_identifier
------BEGIN RSA PRIVATE KEY-----
-MIIEpAIabarcAQEA...
-.
-.
-...DPRoeuTMa
------END RSA PRIVATE KEY-----
-```
-
-__Please note the empty line between keys__
-
+Create a ```GITHUB_DEPLOY_KEY``` environment variable with the private key that you registered on your Heroku
 [Heroku Instructions](https://devcenter.heroku.com/articles/config-vars#setting-up-config-vars-for-a-deployed-application)
 
-To import either of these I do
+I do
 
 ```
-heroku config:set GITHUB_DEPLOY_KEY(S)="`cat /path/to/key_or_key_file`"
+heroku config:set GITHUB_DEPLOY_KEY="`cat /path/to/key`"
 ```
 
 ### Step 3

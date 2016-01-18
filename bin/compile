@@ -24,7 +24,7 @@ end
 
 remove_package_name =  proc { |k| k.split("\n")[1..-1].join("\n") }
 
-verify_key = proc do |key|
+def verify_key(key, dir)
   temp_key_file = Tempfile.new "key"
   temp_key_file.puts key
   temp_key_file.close
@@ -108,14 +108,19 @@ else
     split("\n\n").map(&remove_package_name)
 end
 
-# Verify that the keys are all good keys 
-Dir.mktmpdir('ssh_buidpack') { |dir| keys.each(&verify_key) }
+# Verify that the keys are all good keys
+arrow "Verifying Keys"
+Dir.mktmpdir('ssh_buidpack') do |dir|
+  keys.each do |key|
+    verify_key key, dir
+  end
+end
 
 # Create the ssh directory on the server
 Dir.mkdir(ssh_dir, 0700) unless File.exists?(ssh_dir)
 
 # Create id_rsa file and write contents
-arrow "Verifying Keys"
+arrow "Configuring ssh"
 keys.each_with_index do |key, idx|
 
   key_path = "#{ssh}_dir/id_rsa_#{idx}"

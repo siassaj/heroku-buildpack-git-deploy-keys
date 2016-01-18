@@ -123,7 +123,7 @@ end
 arrow "Verifying Keys"
 Dir.mktmpdir('ssh_buidpack') do |dir|
   keys.each do |key|
-    ver ify_key key, dir
+    verify_key key, dir
   end
 end
 

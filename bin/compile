@@ -22,7 +22,14 @@ def arrow(str)
   end
 end
 
-remove_package_name =  proc { |k| k.split("\n")[1..-1].join("\n") }
+get_package_and_name =  proc do |k|
+
+  pair = k.split("\n")
+  name = pair[0]
+  key = pair[1..-1].join("\n")
+
+  [name, key]
+end
 
 def verify_key(key, dir)
   temp_key_file = Tempfile.new "key"
@@ -50,6 +57,9 @@ def verify_key(key, dir)
   else
     arrow "Using key #{fingerprint}"
   end
+
+  return fingerprint
+
 end
 
 
@@ -98,21 +108,22 @@ key_file =  File.open key_file_path, 'r'
 key_file_content = key_file.read
 key_file.close
 
+# keys looks like [["package", "key"], ["package", "key"]]
 # We want to use the same verify_key proc,
-# so just wrap the single key in an array
+# so just wrap the single key with a blank package in an array
 keys = if use_single_key
-  [key_file_content]
+  [["", key_file_content]]
 else
   key_file_content.
     gsub("\r\n", "\n").
-    split("\n\n").map(&remove_package_name)
+    split("\n\n").map(&get_packgae_and_name)
 end
 
 # Verify that the keys are all good keys
 arrow "Verifying Keys"
 Dir.mktmpdir('ssh_buidpack') do |dir|
   keys.each do |key|
-    verify_key key, dir
+    ver ify_key key, dir
   end
 end
 
@@ -121,21 +132,22 @@ Dir.mkdir(ssh_dir, 0700) unless File.exists?(ssh_dir)
 
 # Create id_rsa file and write contents
 arrow "Configuring ssh"
-keys.each_with_index do |key, idx|
+keys.each do |key_and_package|
+  package = key_and_package[0]
+  key = key_and_package[1]
 
-  key_path = "#{ssh_dir}/id_rsa_#{idx}"
+  key_path = "#{ssh_dir}/id_rsa_#{package}"
 
   File.open key_path, 'w' do |f|
     f.write ssh_key
   end
 
   FileUtils.chmod 0600, key_path
-  arrow "Wrote ssh key ##{idx}to user's ssh dir"
+  arrow "Wrote ssh key for #{package} to user's ssh dir"
 
 # let ssh know about each id
   File.open "#{ssh_dir}/config", 'w' do |f|
-    f.puts "IdentityFile #{key_path}"
-    f.puts "host ssh-key-#{idx} github.com"
+    f.puts "host #{package}_ssh_config_host"
     f.puts "     Hostname github.com"
     f.puts "     user git"
     f.puts "     IdentityFile #{key_path}"

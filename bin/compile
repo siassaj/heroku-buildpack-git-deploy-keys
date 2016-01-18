@@ -21,18 +21,59 @@ def arrow(str)
   end
 end
 
+remove_package_name =  proc { |k| k.split("\n")[1..-1].join("\n") }
+
+verify_key = proc do |key|
+  temp_key_file = Tempfile.new "key"
+  temp_key_file.puts key
+  temp_key_file.close
+
+  # Process key to standardise it's format
+  `ssh-keygen -e -P '' -f #{temp_key_file.path} < /dev/null > #{dir}/ssh_buildpack_key.pub.rfc 2>/dev/null`
+  `ssh-keygen -i -P '' -f #{dir}/ssh_buildpack_key.pub.rfc > #{dir}/ssh_buildpack_key.pub 2>/dev/null`
+
+  # # Process host hash to standardise it's format
+  # `ssh-keygen -e -P '' -f #{key_file_path} < /dev/null > #{dir}/host_hash.pub.rfc 2>/dev/null`
+  # `ssh-keygen -i -P '' -f #{dir}/host_hash.pub.rfc > #{dir}/host_hash.pub 2>/dev/null`
+
+  fingerprint = `ssh-keygen -l -f #{dir}/ssh_buildpack_key.pub | awk '{print $2}'`
+
+  # only used to be sure the passed key was valid
+  temp_key = `echo "#{fingerprint}" | tr -ds ':' '' | egrep -ie "[a-f0-9]{32}" 2>/dev/null`
+
+  # clean_host_hash = `cat "#{dir}/host_hash.pub"`
+
+  if temp_key.strip == ''
+    alert "GITHUB_DEPLOY_KEY(S) was invalid"
+    exit 1
+  else
+    arrow "Using key #{fingerprint}"
+  end
+end
+
+
+
+
 arrow "############################################"
 arrow "         GIT DEPLOY KEY BUILDPACK           "
 arrow "############################################"
 
 arrow "ssh dir is #{ssh_dir}"
 ################# Get the key from heroku's environment config #################
-key_file_path = File.join env_dir, 'GITHUB_DEPLOY_KEY'
+single_key_file_path = File.join env_dir, 'GITHUB_DEPLOY_KEY'
+multi_key_file_path = File.join env_dir, 'GITHUB_DEPLOY_KEYS'
+
+# Check if using GITHUB_DEPLOY_KEY or GITHUB_DEPLOY_KEYS
+use_single_key = File.zero? multi_key_file_path
+
+key_file_path = use_single_key ? single_key_file_path : multi_key_file_path
+arrow "Using " + (use_single_key ? "Single Key" : "Multiple Keys")
+
 ssh_key = File.open(key_file_path, &:read) if File.exist? key_file_path
 
 if ssh_key.nil?
-  alert "GITHUB_DEDLOY_KEY not set"
-  alert "  Try `heroku config:add GITHUB_DEPLOY_KEY=<your private token>`"
+  alert "GITHUB_DEDLOY_KEY(S) not set"
+  alert "  Try `heroku config:add GITHUB_DEPLOY_KEY(S)=<your private token(s)>`"
   exit 1
 end
 
@@ -51,54 +92,57 @@ fingerprint = nil
 temp_key = nil
 clean_host_hash = nil
 
-Dir.mktmpdir 'ssh_buidpack' do |dir|
-  # Process key to standardise it's format
-  `ssh-keygen -e -P '' -f #{key_file_path} < /dev/null > #{dir}/ssh_buildpack_key.pub.rfc 2>/dev/null`
-  `ssh-keygen -i -P '' -f #{dir}/ssh_buildpack_key.pub.rfc > #{dir}/ssh_buildpack_key.pub 2>/dev/null`
+# Get all the content out of the key file
+key_file =  File.open key_file_path, 'r'
+key_file_content = key_file.read
+key_file.close
 
-  # # Process host hash to standardise it's format
-  # `ssh-keygen -e -P '' -f #{key_file_path} < /dev/null > #{dir}/host_hash.pub.rfc 2>/dev/null`
-  # `ssh-keygen -i -P '' -f #{dir}/host_hash.pub.rfc > #{dir}/host_hash.pub 2>/dev/null`
-
-  fingerprint = `ssh-keygen -l -f #{dir}/ssh_buildpack_key.pub | awk '{print $2}'`
-
-  # only used to be sure the passed key was valid
-  temp_key = `echo "#{fingerprint}" | tr -ds ':' '' | egrep -ie "[a-f0-9]{32}" 2>/dev/null`
-
-  # clean_host_hash = `cat "#{dir}/host_hash.pub"`
-
-  if temp_key.strip == ''
-    alert "GITHUB_DEPLOY_KEY was invalid"
-    exit 1
-  else
-    arrow "Using GITHUB_DEPLOY_KEY #{fingerprint}"
-  end
-
+# We want to use the same verify_key proc,
+# so just wrap the single key in an array
+keys = if use_single_key
+  [key_file_content]
+else
+  key_file_content.
+    gsub("\r\n", "\n").
+    split("\n\n").map(&remove_package_name)
 end
+
+# Verify that the keys are all good keys 
+Dir.mktmpdir('ssh_buidpack') { |dir| keys.each(&verify_key) }
 
 # Create the ssh directory on the server
 Dir.mkdir(ssh_dir, 0700) unless File.exists?(ssh_dir)
 
 # Create id_rsa file and write contents
-File.open "#{ssh_dir}/id_rsa", 'w' do |f|
-  f.write ssh_key
+keys.each_with_index do |key, idx|
+
+  key_path = "#{ssh}_dir/id_rsa_#{idx}"
+
+  File.open key_path, 'w' do |f|
+    f.write ssh_key
+  end
+
+  FileUtils.chmod 0600, key_path
+  arrow "Wrote ssh key ##{idx}to user's ssh dir"
+
+# let ssh know about each id
+  File.open "#{ssh_dir}/config", 'w' do |f|
+    f.puts "IdentityFile #{key_path}"
+    f.puts "host ssh-key-#{idx} github.com"
+    f.puts "     Hostname github.com"
+    f.puts "     user git"
+    f.puts "     IdentityFile #{key_path}"
+  end
+  arrow "Added ssh key ##{idx}to user's ssh config"
 end
-FileUtils.chmod 0600, "#{ssh_dir}/id_rsa"
-arrow "Wrote ssh key to user's ssh dir"
 
 #create known_hosts file and write contents
 File.open "#{ssh_dir}/known_hosts", 'w' do |f|
   f.write host_hash
 end
+
 FileUtils.chmod 0600, "#{ssh_dir}/known_hosts"
 arrow "Wrote host hash to user's known hosts"
 
-File.open "#{ssh_dir}/config", 'w' do |f|
-  f.puts "IdentityFile #{ssh_dir}/id_rsa"
-  f.puts "host github.com"
-  f.puts "     user git"
-  f.puts "     IdentityFile #{ssh_dir}/id_rsa"
-end
 FileUtils.chmod 0600, "#{ssh_dir}/config"
 arrow "Wrote config to user's config"
-

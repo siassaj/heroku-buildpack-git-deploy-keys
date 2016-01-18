@@ -130,10 +130,8 @@ keys = if use_single_key
 
 # Verify that the keys are all good keys
 arrow "Verifying Keys"
-Dir.mktmpdir('ssh_buidpack') do |dir|
-  keys.each do |key|
-    verify_key key, dir
-  end
+keys.each do |key|
+  verify_key key
 end
 
 # Create the ssh directory on the server

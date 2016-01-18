@@ -114,6 +114,7 @@ Dir.mktmpdir('ssh_buidpack') { |dir| keys.each(&verify_key) }
 Dir.mkdir(ssh_dir, 0700) unless File.exists?(ssh_dir)
 
 # Create id_rsa file and write contents
+arrow "Verifying Keys"
 keys.each_with_index do |key, idx|
 
   key_path = "#{ssh}_dir/id_rsa_#{idx}"

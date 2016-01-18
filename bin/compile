@@ -32,7 +32,7 @@ get_package_and_name =  proc do |k|
 end
 
 def fingerprint(key)
-  dir.mktmpdir "verify" do |dir|
+  Dir.mktmpdir "verify" do |dir|
 
     temp_key_file = Tempfile.new "key"
     temp_key_file.puts key

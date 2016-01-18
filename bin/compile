@@ -160,7 +160,7 @@ keys.each do |key_and_package|
     f.puts "     user git"
     f.puts "     IdentityFile #{key_path}"
   end
-  arrow "wrote IdentityFile #{key_path} into #{ssh_dir/config}"
+  arrow "wrote IdentityFile #{key_path} into #{ssh_dir}/config"
 end
 
 #create known_hosts file and write contents

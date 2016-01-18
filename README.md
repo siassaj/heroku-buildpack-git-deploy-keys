@@ -1,6 +1,7 @@
 # heroku-buildpack-git-deploy-keys
 Heroku buildpack to let you use git deploy keys with your private repositories
 
+Multiple deploy keys for github aren't going to help you. If you follow 0.2.x tags you'll see me attempt to make that work. It's a pain. Better to set up a "machine user" as per github instructions if you need to pull down more than one repo.
 ### Step 1
 Register a deploy key for a github repository
 [Github Instructions](https://developer.github.com/guides/managing-deploy-keys/#deploy-keys)

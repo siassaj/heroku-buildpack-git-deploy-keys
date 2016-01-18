@@ -31,23 +31,32 @@ get_package_and_name =  proc do |k|
   [name, key]
 end
 
-def verify_key(key, dir)
-  temp_key_file = Tempfile.new "key"
-  temp_key_file.puts key
-  temp_key_file.close
+def fingerprint(key)
+  dir.mktmpdir "verify" do |dir|
 
-  # Process key to standardise it's format
-  `ssh-keygen -e -P '' -f #{temp_key_file.path} < /dev/null > #{dir}/ssh_buildpack_key.pub.rfc 2>/dev/null`
-  `ssh-keygen -i -P '' -f #{dir}/ssh_buildpack_key.pub.rfc > #{dir}/ssh_buildpack_key.pub 2>/dev/null`
+    temp_key_file = Tempfile.new "key"
+    temp_key_file.puts key
+    temp_key_file.close
 
-  # # Process host hash to standardise it's format
-  # `ssh-keygen -e -P '' -f #{key_file_path} < /dev/null > #{dir}/host_hash.pub.rfc 2>/dev/null`
-  # `ssh-keygen -i -P '' -f #{dir}/host_hash.pub.rfc > #{dir}/host_hash.pub 2>/dev/null`
+    # Process key to standardise it's format
+    `ssh-keygen -e -P '' -f #{temp_key_file.path} < /dev/null > #{dir}/ssh_buildpack_key.pub.rfc 2>/dev/null`
+    `ssh-keygen -i -P '' -f #{dir}/ssh_buildpack_key.pub.rfc > #{dir}/ssh_buildpack_key.pub 2>/dev/null`
 
-  fingerprint = `ssh-keygen -l -f #{dir}/ssh_buildpack_key.pub | awk '{print $2}'`
+    # # Process host hash to standardise it's format
+    # `ssh-keygen -e -P '' -f #{key_file_path} < /dev/null > #{dir}/host_hash.pub.rfc 2>/dev/null`
+    # `ssh-keygen -i -P '' -f #{dir}/host_hash.pub.rfc > #{dir}/host_hash.pub 2>/dev/null`
+
+    `ssh-keygen -l -f #{dir}/ssh_buildpack_key.pub | awk '{print $2}'`
+
+  end
+end
+
+def verify_key(key)
+
+  key_fingerprint = fingerprint key
 
   # only used to be sure the passed key was valid
-  temp_key = `echo "#{fingerprint}" | tr -ds ':' '' | egrep -ie "[a-f0-9]{32}" 2>/dev/null`
+  temp_key = `echo "#{key_fingerprint}" | tr -ds ':' '' | egrep -ie "[a-f0-9]{32}" 2>/dev/null`
 
   # clean_host_hash = `cat "#{dir}/host_hash.pub"`
 
@@ -55,10 +64,10 @@ def verify_key(key, dir)
     alert "GITHUB_DEPLOY_KEY(S) was invalid"
     exit 1
   else
-    arrow "Using key #{fingerprint}"
+    arrow "Using key #{key_fingerprint}"
   end
 
-  return fingerprint
+  return key_fingerprint
 
 end
 
@@ -112,12 +121,12 @@ key_file.close
 # We want to use the same verify_key proc,
 # so just wrap the single key with a blank package in an array
 keys = if use_single_key
-  [["", key_file_content]]
-else
-  key_file_content.
-    gsub("\r\n", "\n").
-    split("\n\n").map(&get_packgae_and_name)
-end
+         [["all", key_file_content]]
+       else
+         key_file_content.
+           gsub("\r\n", "\n").
+           split("\n\n").map(&get_package_and_name)
+       end
 
 # Verify that the keys are all good keys
 arrow "Verifying Keys"
@@ -140,19 +149,20 @@ keys.each do |key_and_package|
 
   File.open key_path, 'w' do |f|
     f.write key
+    arrow "Wrote #{fingerprint(key)} into #{key_path}"
   end
 
   FileUtils.chmod 0600, key_path
   arrow "Wrote ssh key for #{package} to user's ssh dir"
 
-# let ssh know about each id
+  # let ssh know about each id
   File.open "#{ssh_dir}/config", 'w' do |f|
-    f.puts "host #{package}_ssh_config_host"
-    f.puts "     Hostname github.com"
+    f.puts "IdentityFile #{key_path}"
+    f.puts "host github.com"
     f.puts "     user git"
     f.puts "     IdentityFile #{key_path}"
   end
-  arrow "Added ssh key for #{package} to user's ssh config"
+  arrow "wrote IdentityFile #{key_path} into #{ssh_dir/config}"
 end
 
 #create known_hosts file and write contents

@@ -123,7 +123,7 @@ Dir.mkdir(ssh_dir, 0700) unless File.exists?(ssh_dir)
 arrow "Configuring ssh"
 keys.each_with_index do |key, idx|
 
-  key_path = "#{ssh}_dir/id_rsa_#{idx}"
+  key_path = "#{ssh_dir}/id_rsa_#{idx}"
 
   File.open key_path, 'w' do |f|
     f.write ssh_key

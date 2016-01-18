@@ -139,7 +139,7 @@ keys.each do |key_and_package|
   key_path = "#{ssh_dir}/id_rsa_#{package}"
 
   File.open key_path, 'w' do |f|
-    f.write ssh_key
+    f.write key
   end
 
   FileUtils.chmod 0600, key_path

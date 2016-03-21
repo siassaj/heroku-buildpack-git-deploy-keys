@@ -31,7 +31,7 @@ key_file_path = File.join env_dir, 'GITHUB_DEPLOY_KEY'
 ssh_key = File.open(key_file_path, &:read) if File.exist? key_file_path
 
 if ssh_key.nil?
-  alert "GITHUB_DEDLOY_KEY not set"
+  alert "GITHUB_DEPLOY_KEY not set"
   alert "  Try `heroku config:add GITHUB_DEPLOY_KEY=<your private token>`"
   exit 1
 end

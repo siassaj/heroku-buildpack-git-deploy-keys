@@ -38,12 +38,11 @@ end
 
 ############# Get the known host from heroku's environment config ##############
 host_hash_path = File.join env_dir, 'GITHUB_HOST_HASH'
-host_hash = File.open(host_hash_path, &:read) if File.exist? host_hash_path
-
-if host_hash.nil?
-  alert "GITHUB_HOST_HASH not set"
-  alert "  Try `heroku config:add GITHUB_HOST_HASH=<hash>`"
-  exit 1
+host_hash = if File.exist? host_hash_path
+  File.open(host_hash_path, &:read)
+else
+  arrow "using default GitHub host hash"
+  %{github.com,192.30.252.128 ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAq2A7hRGmdnm9tUDbO9IDSwBK6TbQa+PXYPCPy6rbTrTtw7PHkccKrpp0yVhp5HdEIcKr6pLlVDBfOLX9QUsyCOV0wzfjIJNlGEYsdlLJizHhbn2mUjvSAHQqZETYP81eFzLQNnPHt4EVVUh7VfDESU84KezmD5QlWpXLmvU31/yMf+Se8xhHTvKSCZIFImWwoG6mbUoWf9nzpIoaSjB+weqqUUmpaaasXVal72J+UX2B+2RPW3RcT0eOzQgqlJL3RKrTJvdsjE3JEAvGq3lGHSZXy28G3skua2SmVi/w4yCE6gbODqnTWlg7+wC604ydGXA8VJiS5ap43JXiUFFAaQ==}
 end
 
 ###################### Process and clean up the ssh keys #######################

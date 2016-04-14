@@ -3,6 +3,7 @@
 require 'fileutils'
 require 'pathname'
 require 'tmpdir'
+require 'ipaddr'
 
 build_dir    = ARGV[0]
 cache_dir    = ARGV[1]
@@ -41,8 +42,10 @@ host_hash_path = File.join env_dir, 'GITHUB_HOST_HASH'
 host_hash = if File.exist? host_hash_path
   File.open(host_hash_path, &:read)
 else
+  # Found there: https://help.github.com/articles/what-ip-addresses-does-github-use-that-i-should-whitelist/
+  github_ips = IPAddr.new('192.30.252.0/22').to_range.to_a.join(',')
   arrow "using default GitHub host hash"
-  %{github.com,192.30.252.122,192.30.252.128,192.30.252.129,192.30.252.130,192.30.252.131 ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAq2A7hRGmdnm9tUDbO9IDSwBK6TbQa+PXYPCPy6rbTrTtw7PHkccKrpp0yVhp5HdEIcKr6pLlVDBfOLX9QUsyCOV0wzfjIJNlGEYsdlLJizHhbn2mUjvSAHQqZETYP81eFzLQNnPHt4EVVUh7VfDESU84KezmD5QlWpXLmvU31/yMf+Se8xhHTvKSCZIFImWwoG6mbUoWf9nzpIoaSjB+weqqUUmpaaasXVal72J+UX2B+2RPW3RcT0eOzQgqlJL3RKrTJvdsjE3JEAvGq3lGHSZXy28G3skua2SmVi/w4yCE6gbODqnTWlg7+wC604ydGXA8VJiS5ap43JXiUFFAaQ==}
+  %{github.com,#{github_ips} ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAq2A7hRGmdnm9tUDbO9IDSwBK6TbQa+PXYPCPy6rbTrTtw7PHkccKrpp0yVhp5HdEIcKr6pLlVDBfOLX9QUsyCOV0wzfjIJNlGEYsdlLJizHhbn2mUjvSAHQqZETYP81eFzLQNnPHt4EVVUh7VfDESU84KezmD5QlWpXLmvU31/yMf+Se8xhHTvKSCZIFImWwoG6mbUoWf9nzpIoaSjB+weqqUUmpaaasXVal72J+UX2B+2RPW3RcT0eOzQgqlJL3RKrTJvdsjE3JEAvGq3lGHSZXy28G3skua2SmVi/w4yCE6gbODqnTWlg7+wC604ydGXA8VJiS5ap43JXiUFFAaQ==}
 end
 
 ###################### Process and clean up the ssh keys #######################

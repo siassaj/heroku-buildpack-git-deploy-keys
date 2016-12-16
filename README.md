@@ -37,26 +37,20 @@ heroku config:set GIT_USER=git-party
 ```
 
 ### Step 5
-Set your Heroku app's default buildpack to heroku-buildpack-compose
-[Instructions](https://github.com/bwhmather/heroku-buildpack-compose)
+Use this custom repository as custom buildpack for heroku deployment.
+This buildpack should be executed first as it takes care of setting up the SSH environment, for accessing private
+repos.
 
-You can probably use buildpack-multi, though I haven't tried.
-
-### Step 6
-Create a .buildpacks file if you already haven't in the root directory of your app. Make sure it includes this buildpack, and any other buildpacks you need. I'm using Ruby on Rails, so I have:
-
-NOTE: Put this buildpack first!
-
-```sh
-$ cat .buildpacks
-
-https://github.com/siassaj/heroku-buildpack-git-deploy-keys
-https://github.com/heroku/heroku-buildpack-ruby
 ```
+heroku buildpacks:set --index 1 "https://github.com/rajaravivarma-r/heroku-buildpack-git-deploy-keys.git#develop"
+heroku buildpacks:add 'heroku/ruby'
+```
+The `--index 1` tells heroku to run this custom buildpack before other buildpacks.
+Read more about using third-party buildpacks in heroku https://devcenter.heroku.com/articles/third-party-buildpacks#using-a-custom-buildpack
 
-### 6
-Commit the .buildpacks file to your repository and push to Heroku. Cross fingers.
-
+`heroku buildpacks:add 'heroku/ruby'` tells heroku to use the default buildpack for Ruby applications.
+Use the appropriate buildpack for your application.
+Default buildpacks available in Heroku https://devcenter.heroku.com/articles/buildpacks#officially-supported-buildpacks
 
 #### Shoutout
 This package draws very heavily from

@@ -125,10 +125,11 @@ arrow "Wrote host hash to user's known hosts"
 
 File.open "#{SSH_DIR}/config", 'w' do |f|
   f.puts "IdentityFile #{SSH_DIR}/id_rsa"
-  f.puts "host #{git_host}"
-  f.puts "     user #{git_user}"
+  f.puts "Host #{git_host}"
+  f.puts "     User #{git_user}"
   f.puts "     IdentityFile #{SSH_DIR}/id_rsa"
 end
 FileUtils.chmod 0600, "#{SSH_DIR}/config"
 arrow "Wrote config to user's config"
-
+arrow "SSH CONFIG"
+arrow File.read("#{SSH_DIR}/config")

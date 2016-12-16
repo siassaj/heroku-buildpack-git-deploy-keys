@@ -65,7 +65,7 @@ git_host = read_env('GIT_HOST')
 
 if git_host.nil?
   arrow 'GIT_HOST not set, assuming github.com'
-  git_user = 'github.com'
+  git_host = 'github.com'
 end
 
 ############# Get the git user from heroku's environment config ################

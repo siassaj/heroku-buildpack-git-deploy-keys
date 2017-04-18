@@ -13,4 +13,8 @@ Then you have to install this buildpack on your app: [Instructions](https://devc
 
 ### Development / Testing
 
-A great way to test is using Heroku's buildpack test runner. See https://github.com/heroku/heroku-buildpack-testrunner
+A great way to test is using Heroku's buildpack test runner. See https://github.com/heroku/heroku-buildpack-testrunner. To set up, run these commands:
+```
+heroku create --buildpack https://github.com/heroku/heroku-buildpack-testrunner
+git push heroku master
+```

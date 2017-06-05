@@ -38,7 +38,7 @@ This buildpack should be executed first as it takes care of setting up the SSH e
 repos.
 
 ```
-heroku buildpacks:set --index 1 "https://github.com/rajaravivarma-r/heroku-buildpack-git-deploy-keys.git#develop"
+heroku buildpacks:set --index 1 "https://github.com/siassaj/heroku-buildpack-git-deploy-keys.git#master"
 heroku buildpacks:add 'heroku/ruby'
 ```
 The `--index 1` tells heroku to run this custom buildpack before other buildpacks.

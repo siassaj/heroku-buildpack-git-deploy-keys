@@ -3,11 +3,12 @@
 require 'fileutils'
 require 'pathname'
 require 'tmpdir'
+require 'ipaddr'
 
-build_dir    = ARGV[0]
-cache_dir    = ARGV[1]
-env_dir      = ARGV[2]
-ssh_dir      = File.expand_path "#{ENV['HOME']}/.ssh"
+BUILD_DIR    = ARGV[0]
+CACHE_DIR    = ARGV[1]
+ENV_DIR      = ARGV[2]
+SSH_DIR      = File.expand_path "#{ENV['HOME']}/.ssh"
 
 def alert(str)
   str.split('\n').each do |line|
@@ -21,29 +22,78 @@ def arrow(str)
   end
 end
 
+def read_env(env_file)
+  env_file_path = File.join(ENV_DIR, env_file)
+
+  if env_file.include?('GITHUB') && File.exist?(env_file_path)
+    alert "#{env_file} is deprecated, please switch to #{env_file.sub('GITHUB','GIT')}"
+  end
+
+  File.exist?(env_file_path) && File.read(env_file_path) || nil
+end
+
+def fetch_github_hash
+  arrow "GIT_HOST_HASH not set, assuming github hash"
+
+  ## Begin openssh voodoo to construct host hashes for the github ips
+  # appends  known github ip addresses to the github public hash, without overflowing
+  # the openssh max line length.
+
+  # Found there: https://help.github.com/articles/what-ip-addresses-does-github-use-that-i-should-whitelist/
+  github_ips = IPAddr.new('192.30.252.0/22').to_range.to_a
+  # Found here: https://github.com/openssh/openssh-portable/blob/0235a5fa67fcac51adb564cba69011a535f86f6b/hostfile.c#L674
+  ssh_max_line_length = 8192
+  template = %{github.com,%s ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAq2A7hRGmdnm9tUDbO9IDSwBK6TbQa+PXYPCPy6rbTrTtw7PHkccKrpp0yVhp5HdEIcKr6pLlVDBfOLX9QUsyCOV0wzfjIJNlGEYsdlLJizHhbn2mUjvSAHQqZETYP81eFzLQNnPHt4EVVUh7VfDESU84KezmD5QlWpXLmvU31/yMf+Se8xhHTvKSCZIFImWwoG6mbUoWf9nzpIoaSjB+weqqUUmpaaasXVal72J+UX2B+2RPW3RcT0eOzQgqlJL3RKrTJvdsjE3JEAvGq3lGHSZXy28G3skua2SmVi/w4yCE6gbODqnTWlg7+wC604ydGXA8VJiS5ap43JXiUFFAaQ==}
+  ips_per_line = (ssh_max_line_length - template.bytesize) / '255.255.255.255,'.bytesize
+
+  lines = []
+  until github_ips.empty?
+    lines << template % github_ips.pop(ips_per_line).join(',')
+  end
+  lines.join("\n")
+end
+
+
 arrow "############################################"
 arrow "         GIT DEPLOY KEY BUILDPACK           "
 arrow "############################################"
 
-arrow "ssh dir is #{ssh_dir}"
+arrow "ssh dir is #{SSH_DIR}"
 ################# Get the key from heroku's environment config #################
-key_file_path = File.join env_dir, 'GITHUB_DEPLOY_KEY'
-ssh_key = File.open(key_file_path, &:read) if File.exist? key_file_path
+ssh_key = read_env('GIT_DEPLOY_KEY')
+key_file_path = File.join(ENV_DIR, 'GIT_DEPLOY_KEY') if ssh_key
+
+ssh_key ||= read_env('GITHUB_DEPLOY_KEY')
+key_file_path ||= File.join(ENV_DIR, 'GITHUB_DEPLOY_KEY')
 
 if ssh_key.nil?
-  alert "GITHUB_DEDLOY_KEY not set"
-  alert "  Try `heroku config:add GITHUB_DEPLOY_KEY=<your private token>`"
+  alert "GIT_DEPLOY_KEY not set"
+  alert "  Try `heroku config:add GIT_DEPLOY_KEY=<your private token>`"
   exit 1
 end
 
-############# Get the known host from heroku's environment config ##############
-host_hash_path = File.join env_dir, 'GITHUB_HOST_HASH'
-host_hash = File.open(host_hash_path, &:read) if File.exist? host_hash_path
+FileUtils.chmod 0600, key_file_path
 
-if host_hash.nil?
-  alert "GITHUB_HOST_HASH not set"
-  alert "  Try `heroku config:add GITHUB_HOST_HASH=<hash>`"
-  exit 1
+############# Get the known host from heroku's environment config ##############
+host_hash = read_env('GIT_HOST_HASH') ||
+  read_env('GITHUB_HOST_HASH') ||
+  fetch_github_hash()
+
+
+############# Get the git host from heroku's environment config ################
+git_host = read_env('GIT_HOST')
+
+if git_host.nil?
+  arrow 'GIT_HOST not set, assuming github.com'
+  git_host = 'github.com'
+end
+
+############# Get the git user from heroku's environment config ################
+git_user = read_env('GIT_USER')
+
+if git_user.nil?
+  arrow "GIT_USER not set, assuming 'git'"
+  git_user = 'git'
 end
 
 ###################### Process and clean up the ssh keys #######################
@@ -52,53 +102,50 @@ temp_key = nil
 clean_host_hash = nil
 
 Dir.mktmpdir 'ssh_buidpack' do |dir|
-  # Process key to standardise it's format
+  # First build a rfc standard public key
   `ssh-keygen -e -P '' -f #{key_file_path} < /dev/null > #{dir}/ssh_buildpack_key.pub.rfc 2>/dev/null`
+
+  # Now turn it into a pem
   `ssh-keygen -i -P '' -f #{dir}/ssh_buildpack_key.pub.rfc > #{dir}/ssh_buildpack_key.pub 2>/dev/null`
 
-  # # Process host hash to standardise it's format
-  # `ssh-keygen -e -P '' -f #{key_file_path} < /dev/null > #{dir}/host_hash.pub.rfc 2>/dev/null`
-  # `ssh-keygen -i -P '' -f #{dir}/host_hash.pub.rfc > #{dir}/host_hash.pub 2>/dev/null`
+  # Fingerprint the file with md5. It's insecure but that's fine, we're validating the key
+  fingerprint = `ssh-keygen -l -E md5 -f #{dir}/ssh_buildpack_key.pub | awk '{print $2}'`
 
-  fingerprint = `ssh-keygen -l -f #{dir}/ssh_buildpack_key.pub | awk '{print $2}'`
-
-  # only used to be sure the passed key was valid
+  # Expecting something like "AB:02: etc."
   temp_key = `echo "#{fingerprint}" | tr -ds ':' '' | egrep -ie "[a-f0-9]{32}" 2>/dev/null`
 
-  # clean_host_hash = `cat "#{dir}/host_hash.pub"`
-
   if temp_key.strip == ''
-    alert "GITHUB_DEPLOY_KEY was invalid"
+    alert "GIT_DEPLOY_KEY was invalid"
     exit 1
   else
-    arrow "Using GITHUB_DEPLOY_KEY #{fingerprint}"
+    arrow "Using GIT_DEPLOY_KEY #{fingerprint}"
   end
 
 end
 
 # Create the ssh directory on the server
-Dir.mkdir(ssh_dir, 0700) unless File.exists?(ssh_dir)
+Dir.mkdir(SSH_DIR, 0700) unless File.exists?(SSH_DIR)
 
-# Create id_rsa file and write contents
-File.open "#{ssh_dir}/id_rsa", 'w' do |f|
+# Create private_key file and write contents
+File.open "#{SSH_DIR}/private_key", 'w' do |f|
   f.write ssh_key
 end
-FileUtils.chmod 0600, "#{ssh_dir}/id_rsa"
+FileUtils.chmod 0600, "#{SSH_DIR}/private_key"
 arrow "Wrote ssh key to user's ssh dir"
 
 #create known_hosts file and write contents
-File.open "#{ssh_dir}/known_hosts", 'w' do |f|
+File.open "#{SSH_DIR}/known_hosts", 'w' do |f|
   f.write host_hash
 end
-FileUtils.chmod 0600, "#{ssh_dir}/known_hosts"
+FileUtils.chmod 0600, "#{SSH_DIR}/known_hosts"
 arrow "Wrote host hash to user's known hosts"
 
-File.open "#{ssh_dir}/config", 'w' do |f|
-  f.puts "IdentityFile #{ssh_dir}/id_rsa"
-  f.puts "host github.com"
-  f.puts "     user git"
-  f.puts "     IdentityFile #{ssh_dir}/id_rsa"
+File.open "#{SSH_DIR}/config", 'w+' do |f|
+  f.puts "Host #{git_host}"
+  f.puts "     User #{git_user}"
+  f.puts "     IdentityFile #{SSH_DIR}/private_key"
 end
-FileUtils.chmod 0600, "#{ssh_dir}/config"
+FileUtils.chmod 0600, "#{SSH_DIR}/config"
 arrow "Wrote config to user's config"
-
+arrow "SSH CONFIG"
+arrow File.read("#{SSH_DIR}/config")

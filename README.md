@@ -1,10 +1,7 @@
-# heroku-buildpack-git-deploy-keys
-Heroku buildpack to let you use git deploy keys with your private repositories
+n# heroku-buildpack-git-deploy-keys
+Heroku buildpack to let you add an SSH private key to an heroku app so it can access private GitHub repositories during `bundle install`
 
-Multiple deploy keys for github aren't going to help you. If you follow 0.2.x tags you'll see me attempt to make that work. It's a pain. Better to set up a "machine user" as per github instructions if you need to pull down more than one repo.
-### Step 1
-Register a deploy key for a github repository
-[Github Instructions](https://developer.github.com/guides/managing-deploy-keys/#deploy-keys)
+### Installation
 
 ### Step 2
 Create a ```GIT_DEPLOY_KEY``` environment variable with the private key that you registered on your Heroku
@@ -17,26 +14,25 @@ heroku config:set GIT_DEPLOY_KEY="`cat /path/to/key`"
 ```
 
 ### Step 3
-Create a ```GIT_HOST_HASH``` environment variable with the identification keys for the hosts that you're going to connect to. These are the keys found in ```~/.ssh/known_hosts```.
-
-I backed up my ~/.ssh/known_hosts, connected to each host manually via ssh, and then did:
-
-```
-heroku config:set GIT_HOST_HASH="`cat ~/.ssh/known_hosts`"
-```
-
-Afterwards I restored my old known_hosts file.
-
-### Step 4
-
-Optionally configure `GIT_HOST` and `GIT_USER`. If not provided, they will default to `github.com` and `git` respectively.
+Optionally configure `GIT_HOST`, `GIT_USER` and `GIT_HOST_HASH`. If not provided, they will default to `github.com`,`git` and github hashes respectively.
 
 ```
 heroku config:set GIT_HOST=my-git-host.example.com
 heroku config:set GIT_USER=git-party
+heroku config:set GIT_HOST_HASH="git-host.example.com ssh-rsa AAABBBCCC...CCCXXX"
 ```
 
-### Step 5
+Getting the host key can be a pain so the following is a quick and dirty solution;
+1st backup and clear out your ~/.ssh/known_hosts file, then connect to each host with ssh, which will prompt you with host hash fingerprint. Verify these and accept the connection.
+When you're done doing that you can do
+
+```
+ heroku config:set GIT_HOST_HASH="`cat ~/.ssh/known_hosts`"
+```
+
+Then restore your known_hosts backup file.
+
+### Step 4
 Use this custom repository as custom buildpack for heroku deployment.
 This buildpack should be executed first as it takes care of setting up the SSH environment, for accessing private
 repos.
@@ -51,6 +47,13 @@ Read more about using third-party buildpacks in heroku https://devcenter.heroku.
 `heroku buildpacks:add 'heroku/ruby'` tells heroku to use the default buildpack for Ruby applications.
 Use the appropriate buildpack for your application.
 Default buildpacks available in Heroku https://devcenter.heroku.com/articles/buildpacks#officially-supported-buildpacks
+
+### Development / Testing
+
+#### WARNING
+Testing on your local machine with the test runner _will_ clobber ~/.ssh/known_hosts and  ~/.ssh/private_key file if they exist. I just destroyed my ~/.ssh/id_rsa and ~/.ssh/known_hosts testing this. I renamed the key being used to private_key (also because we can't be sure it'll be an RSA id anyway) so it should be less devastating but you've been warned. Best is probably to chmod everything in ~/.ssh to 0400.
+
+A great way to test is using Heroku's buildpack test runner. See https://github.com/heroku/heroku-buildpack-testrunner. To set up, run these commands:
 
 #### Shoutout
 This package draws very heavily from

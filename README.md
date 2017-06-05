@@ -1,9 +1,9 @@
-n# heroku-buildpack-git-deploy-keys
+# heroku-buildpack-git-deploy-keys
 Heroku buildpack to let you add an SSH private key to an heroku app so it can access private GitHub repositories during `bundle install`
 
 ### Installation
 
-### Step 2
+### Step 1
 Create a ```GIT_DEPLOY_KEY``` environment variable with the private key that you registered on your Heroku
 [Heroku Instructions](https://devcenter.heroku.com/articles/config-vars#setting-up-config-vars-for-a-deployed-application)
 
@@ -13,7 +13,7 @@ I do
 heroku config:set GIT_DEPLOY_KEY="`cat /path/to/key`"
 ```
 
-### Step 3
+### Step 2
 Optionally configure `GIT_HOST`, `GIT_USER` and `GIT_HOST_HASH`. If not provided, they will default to `github.com`,`git` and github hashes respectively.
 
 ```
@@ -32,7 +32,7 @@ When you're done doing that you can do
 
 Then restore your known_hosts backup file.
 
-### Step 4
+### Step 3
 Use this custom repository as custom buildpack for heroku deployment.
 This buildpack should be executed first as it takes care of setting up the SSH environment, for accessing private
 repos.

@@ -65,13 +65,13 @@ git_host = read_env('GIT_HOST')
 
 if git_host.nil?
   arrow 'GIT_HOST not set, assuming github.com'
-  git_user = 'github.com'
+  git_host = 'github.com'
 end
 
 ############# Get the git user from heroku's environment config ################
-git_host = read_env('GIT_USER')
+git_user = read_env('GIT_USER')
 
-if git_host.nil?
+if git_user.nil?
   arrow "GIT_USER not set, assuming 'git'"
   git_user = 'git'
 end
@@ -125,10 +125,11 @@ arrow "Wrote host hash to user's known hosts"
 
 File.open "#{SSH_DIR}/config", 'w' do |f|
   f.puts "IdentityFile #{SSH_DIR}/id_rsa"
-  f.puts "host #{git_host}"
-  f.puts "     user #{git_user}"
+  f.puts "Host #{git_host}"
+  f.puts "     User #{git_user}"
   f.puts "     IdentityFile #{SSH_DIR}/id_rsa"
 end
 FileUtils.chmod 0600, "#{SSH_DIR}/config"
 arrow "Wrote config to user's config"
-
+arrow "SSH CONFIG"
+arrow File.read("#{SSH_DIR}/config")

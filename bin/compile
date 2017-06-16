@@ -109,7 +109,15 @@ Dir.mktmpdir 'ssh_buidpack' do |dir|
   `ssh-keygen -i -P '' -f #{dir}/ssh_buildpack_key.pub.rfc > #{dir}/ssh_buildpack_key.pub 2>/dev/null`
 
   # Fingerprint the file with md5. It's insecure but that's fine, we're validating the key
-  fingerprint = `ssh-keygen -l -E md5 -f #{dir}/ssh_buildpack_key.pub | awk '{print $2}'`
+  # Annoyingly openssh changed how fingerprints are made in 6.8, and heroku hasn't migrated
+  # all their environments...
+  ssh_version = `ssh -V 2>&1`.match(/OpenSSH_([^ ]*)/)[1]
+  # this works for stuff like 7.8p1 etc but it's a sketchy comparison...
+  fingerprint = if ssh_version > "6.8"
+                  `ssh-keygen -l -E md5 -f #{dir}/ssh_buildpack_key.pub | awk '{print $2}'`
+                else
+                  `ssh-keygen -l -f #{dir}/ssh_buildpack_key.pub | awk '{print $2}'`
+                end
 
   # Expecting something like "AB:02: etc."
   temp_key = `echo "#{fingerprint}" | tr -ds ':' '' | egrep -ie "[a-f0-9]{32}" 2>/dev/null`

@@ -59,5 +59,3 @@ A great way to test is using Heroku's buildpack test runner. See https://github.
 This package draws very heavily from
 https://github.com/fs-webdev/heroku-buildpack-ssh-keys
 That project's gone now, but I'd still like to thank it's main writer Tim Shadel (https://github.com/timshadel) for the work.
-
-[![alt Sentia.com.au](http://www.sentia.com.au/sentia-open-graph.png "Sentia ")](http://www.sentia.com.au)

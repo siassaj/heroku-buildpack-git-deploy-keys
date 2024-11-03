@@ -1,160 +1,142 @@
-#!/usr/bin/env ruby
+#!/usr/bin/env bash
 
-require 'fileutils'
-require 'pathname'
-require 'tmpdir'
-require 'ipaddr'
+BUILD_DIR="$1"
+CACHE_DIR="$2"
+ENV_DIR="$3"
+SSH_DIR="${HOME}/.ssh"
 
-BUILD_DIR    = ARGV[0]
-CACHE_DIR    = ARGV[1]
-ENV_DIR      = ARGV[2]
-SSH_DIR      = File.expand_path "#{ENV['HOME']}/.ssh"
+# Helper functions
 
-def alert(str)
-  str.split('\n').each do |line|
-    puts "       !!!! #{line}"
-  end
-end
+alert() {
+    echo "$1" | while IFS= read -r line; do
+        echo "       !!!! $line"
+    done
+}
 
-def arrow(str)
-  str.split("\n").each do |line|
-    puts ":::::> #{line}"
-  end
-end
+arrow() {
+    echo "$1" | while IFS= read -r line; do
+        echo ":::::> $line"
+    done
+}
 
-def read_env(env_file)
-  env_file_path = File.join(ENV_DIR, env_file)
+read_env() {
+    local env_file="$1"
+    local env_file_path="${ENV_DIR}/${env_file}"
+    
+    if [[ "$env_file" == *"GITHUB"* ]] && [[ -f "$env_file_path" ]]; then
+        alert "${env_file} is deprecated, please switch to ${env_file/GITHUB/GIT}"
+    fi
 
-  if env_file.include?('GITHUB') && File.exist?(env_file_path)
-    alert "#{env_file} is deprecated, please switch to #{env_file.sub('GITHUB','GIT')}"
-  end
+    if [[ -f "$env_file_path" ]]; then
+        cat "$env_file_path"
+    fi
+}
 
-  File.exist?(env_file_path) && File.read(env_file_path) || nil
-end
-
-def fetch_github_hash
-  arrow "GIT_HOST_HASH not set, assuming github hash"
-
-  ## Begin openssh voodoo to construct host hashes for the github ips
-  # appends  known github ip addresses to the github public hash, without overflowing
-  # the openssh max line length.
-
-  # Found there: https://help.github.com/articles/what-ip-addresses-does-github-use-that-i-should-whitelist/
-  github_ips = IPAddr.new('192.30.252.0/22').to_range.to_a
-  # Found here: https://github.com/openssh/openssh-portable/blob/0235a5fa67fcac51adb564cba69011a535f86f6b/hostfile.c#L674
-  ssh_max_line_length = 8192
-  template = %{github.com,%s ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCj7ndNxQowgcQnjshcLrqPEiiphnt+VTTvDP6mHBL9j1aNUkY4Ue1gvwnGLVlOhGeYrnZaMgRK6+PKCUXaDbC7qtbW8gIkhL7aGCsOr/C56SJMy/BCZfxd1nWzAOxSDPgVsmerOBYfNqltV9/hWCqBywINIR+5dIg6JTJ72pcEpEjcYgXkE2YEFXV1JHnsKgbLWNlhScqb2UmyRkQyytRLtL+38TGxkxCflmO+5Z8CSSNY7GidjMIZ7Q4zMjA2n1nGrlTDkzwDCsw+wqFPGQA179cnfGWOWRVruj16z6XyvxvjJwbz0wQZ75XK5tKSb7FNyeIEs4TT4jk+S4dhPeAUC5y+bDYirYgM4GC7uEnztnZyaVWQ7B381AK4Qdrwt51ZqExKbQpTUNn+EjqoTwvqNj4kqx5QUCI0ThS/YkOxJCXmPUWZbhjpCg56i+2aB6CmK2JGhn57K5mj0MNdBXA4/WnwH6XoPWJzK5Nyu2zB3nAZp+S5hpQs+p1vN1/wsjk=}
-  
-  ips_per_line = (ssh_max_line_length - template.bytesize) / '255.255.255.255,'.bytesize
-
-  lines = []
-  until github_ips.empty?
-    lines << template % github_ips.pop(ips_per_line).join(',')
-  end
-  lines.join("\n")
-end
-
+fetch_github_hash() {
+    arrow "GIT_HOST_HASH not set, assuming github hash"
+    
+    # GitHub IP range and SSH key
+    local github_base="github.com"
+    local github_rsa_key="ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCj7ndNxQowgcQnjshcLrqPEiiphnt+VTTvDP6mHBL9j1aNUkY4Ue1gvwnGLVlOhGeYrnZaMgRK6+PKCUXaDbC7qtbW8gIkhL7aGCsOr/C56SJMy/BCZfxd1nWzAOxSDPgVsmerOBYfNqltV9/hWCqBywINIR+5dIg6JTJ72pcEpEjcYgXkE2YEFXV1JHnsKgbLWNlhScqb2UmyRkQyytRLtL+38TGxkxCflmO+5Z8CSSNY7GidjMIZ7Q4zMjA2n1nGrlTDkzwDCsw+wqFPGQA179cnfGWOWRVruj16z6XyvxvjJwbz0wQZ75XK5tKSb7FNyeIEs4TT4jk+S4dhPeAUC5y+bDYirYgM4GC7uEnztnZyaVWQ7B381AK4Qdrwt51ZqExKbQpTUNn+EjqoTwvqNj4kqx5QUCI0ThS/YkOxJCXmPUWZbhjpCg56i+2aB6CmK2JGhn57K5mj0MNdBXA4/WnwH6XoPWJzK5Nyu2zB3nAZp+S5hpQs+p1vN1/wsjk="
+    local github_ecdsa_key="ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBEmKSENjQEezOmxkZMy7opKgwFB9nkt5YRrYMjNuG5N87uRgg6CLrbo5wAdT/y6v0mKV0U2w0WZ2YB/++Tpockg="
+    local github_ed25519_key="sh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl"
+    
+    echo "${github_base} ${github_rsa_key}
+${github_base} ${github_ecdsa_key}
+${github_base} ${github_ed25519_key}"
+}
 
 arrow "############################################"
 arrow "         GIT DEPLOY KEY BUILDPACK           "
 arrow "############################################"
 
-arrow "ssh dir is #{SSH_DIR}"
-################# Get the key from heroku's environment config #################
-ssh_key = read_env('GIT_DEPLOY_KEY')
-key_file_path = File.join(ENV_DIR, 'GIT_DEPLOY_KEY') if ssh_key
+arrow "ssh dir is ${SSH_DIR}"
 
-ssh_key ||= read_env('GITHUB_DEPLOY_KEY')
-key_file_path ||= File.join(ENV_DIR, 'GITHUB_DEPLOY_KEY')
+# Get deploy key from environment
+ssh_key=$(read_env 'GIT_DEPLOY_KEY')
+key_file_path="${ENV_DIR}/GIT_DEPLOY_KEY"
 
-if ssh_key.nil?
-  alert "GIT_DEPLOY_KEY not set"
-  alert "  Try `heroku config:add GIT_DEPLOY_KEY=<your private token>`"
-  exit 1
-end
+if [[ -z "$ssh_key" ]]; then
+    ssh_key=$(read_env 'GITHUB_DEPLOY_KEY')
+    key_file_path="${ENV_DIR}/GITHUB_DEPLOY_KEY"
+fi
 
-FileUtils.chmod 0600, key_file_path
+if [[ -z "$ssh_key" ]]; then
+    alert "GIT_DEPLOY_KEY not set"
+    alert "  Try \`heroku config:add GIT_DEPLOY_KEY=<your private token>\`"
+    exit 1
+fi
 
-############# Get the known host from heroku's environment config ##############
-host_hash = read_env('GIT_HOST_HASH') ||
-  read_env('GITHUB_HOST_HASH') ||
-  fetch_github_hash()
+chmod 0600 "$key_file_path"
 
+# Get host hash
+host_hash=$(read_env 'GIT_HOST_HASH')
+if [[ -z "$host_hash" ]]; then
+    host_hash=$(read_env 'GITHUB_HOST_HASH')
+fi
+if [[ -z "$host_hash" ]]; then
+    host_hash=$(fetch_github_hash)
+fi
 
-############# Get the git host from heroku's environment config ################
-git_host = read_env('GIT_HOST')
+# Get git host
+git_host=$(read_env 'GIT_HOST')
+if [[ -z "$git_host" ]]; then
+    arrow 'GIT_HOST not set, assuming github.com'
+    git_host='github.com'
+fi
 
-if git_host.nil?
-  arrow 'GIT_HOST not set, assuming github.com'
-  git_host = 'github.com'
-end
+# Get git user
+git_user=$(read_env 'GIT_USER')
+if [[ -z "$git_user" ]]; then
+    arrow "GIT_USER not set, assuming 'git'"
+    git_user='git'
+fi
 
-############# Get the git user from heroku's environment config ################
-git_user = read_env('GIT_USER')
+# Process and validate SSH key
+temp_dir=$(mktemp -d)
+trap 'rm -rf "$temp_dir"' EXIT
 
-if git_user.nil?
-  arrow "GIT_USER not set, assuming 'git'"
-  git_user = 'git'
-end
+ssh-keygen -e -P '' -f "$key_file_path" < /dev/null > "${temp_dir}/ssh_buildpack_key.pub.rfc" 2>/dev/null
+ssh-keygen -i -P '' -f "${temp_dir}/ssh_buildpack_key.pub.rfc" > "${temp_dir}/ssh_buildpack_key.pub" 2>/dev/null
 
-###################### Process and clean up the ssh keys #######################
-fingerprint = nil
-temp_key = nil
-clean_host_hash = nil
+# Get SSH version and generate fingerprint accordingly
+ssh_version=$(ssh -V 2>&1 | grep -o 'OpenSSH_[0-9.]*' | cut -d_ -f2)
+if [[ $(echo "$ssh_version" | cut -d. -f1) -ge 7 ]] || [[ "$ssh_version" == "6.9"* ]] || [[ "$ssh_version" == "6.8"* ]]; then
+    fingerprint=$(ssh-keygen -l -E md5 -f "${temp_dir}/ssh_buildpack_key.pub" | awk '{print $2}')
+else
+    fingerprint=$(ssh-keygen -l -f "${temp_dir}/ssh_buildpack_key.pub" | awk '{print $2}')
+fi
 
-Dir.mktmpdir 'ssh_buidpack' do |dir|
-  # First build a rfc standard public key
-  `ssh-keygen -e -P '' -f #{key_file_path} < /dev/null > #{dir}/ssh_buildpack_key.pub.rfc 2>/dev/null`
+temp_key=$(echo "$fingerprint" | tr -d ':' | grep -iE '[a-f0-9]{32}')
 
-  # Now turn it into a pem
-  `ssh-keygen -i -P '' -f #{dir}/ssh_buildpack_key.pub.rfc > #{dir}/ssh_buildpack_key.pub 2>/dev/null`
-
-  # Fingerprint the file with md5. It's insecure but that's fine, we're validating the key
-  # Annoyingly openssh changed how fingerprints are made in 6.8, and heroku hasn't migrated
-  # all their environments...
-  ssh_version = `ssh -V 2>&1`.match(/OpenSSH_([^ ]*)/)[1]
-  # this works for stuff like 7.8p1 etc but it's a sketchy comparison...
-  fingerprint = if ssh_version > "6.8"
-                  `ssh-keygen -l -E md5 -f #{dir}/ssh_buildpack_key.pub | awk '{print $2}'`
-                else
-                  `ssh-keygen -l -f #{dir}/ssh_buildpack_key.pub | awk '{print $2}'`
-                end
-
-  # Expecting something like "AB:02: etc."
-  temp_key = `echo "#{fingerprint}" | tr -ds ':' '' | egrep -ie "[a-f0-9]{32}" 2>/dev/null`
-
-  if temp_key.strip == ''
+if [[ -z "$temp_key" ]]; then
     alert "GIT_DEPLOY_KEY was invalid"
     exit 1
-  else
-    arrow "Using GIT_DEPLOY_KEY #{fingerprint}"
-  end
+else
+    arrow "Using GIT_DEPLOY_KEY ${fingerprint}"
+fi
 
-end
+# Create SSH directory and files
+mkdir -p "$SSH_DIR"
+chmod 0700 "$SSH_DIR"
 
-# Create the ssh directory on the server
-Dir.mkdir(SSH_DIR, 0700) unless File.exists?(SSH_DIR)
-
-# Create private_key file and write contents
-File.open "#{SSH_DIR}/private_key", 'w' do |f|
-  f.write ssh_key
-end
-FileUtils.chmod 0600, "#{SSH_DIR}/private_key"
+# Write private key
+echo "$ssh_key" > "${SSH_DIR}/private_key"
+chmod 0600 "${SSH_DIR}/private_key"
 arrow "Wrote ssh key to user's ssh dir"
 
-#create known_hosts file and write contents
-File.open "#{SSH_DIR}/known_hosts", 'w' do |f|
-  f.write host_hash
-end
-FileUtils.chmod 0600, "#{SSH_DIR}/known_hosts"
+# Write known hosts
+echo "$host_hash" > "${SSH_DIR}/known_hosts"
+chmod 0600 "${SSH_DIR}/known_hosts"
 arrow "Wrote host hash to user's known hosts"
 
-File.open "#{SSH_DIR}/config", 'w+' do |f|
-  f.puts "Host #{git_host}"
-  f.puts "     User #{git_user}"
-  f.puts "     IdentityFile #{SSH_DIR}/private_key"
-end
-FileUtils.chmod 0600, "#{SSH_DIR}/config"
+# Write SSH config
+cat > "${SSH_DIR}/config" << EOF
+Host ${git_host}
+     User ${git_user}
+     IdentityFile ${SSH_DIR}/private_key
+EOF
+chmod 0600 "${SSH_DIR}/config"
 arrow "Wrote config to user's config"
 arrow "SSH CONFIG"
-arrow File.read("#{SSH_DIR}/config")
+arrow "$(cat "${SSH_DIR}/config")"
